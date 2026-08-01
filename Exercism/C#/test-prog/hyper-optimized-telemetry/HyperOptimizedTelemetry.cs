@@ -1,33 +1,30 @@
 public static class TelemetryBuffer {
 
     public static byte[] ToBuffer(long reading) {
-        byte[] completeBuffer = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0}, payloadBytes;
+        byte[] buffer = new byte[9];
         byte length, prefix;
-        if ((4_294_967_296 <= reading && reading <= 9_223_372_036_854_775_807) || (-9_223_372_036_854_775_808 <= reading && reading <= -2_147_483_649)) {
-            length = 8;
-            prefix = (byte)(256 - length);
-        } else if ((2_147_483_648 <= reading && reading <= 4_294_967_295)) {
-            length = 4;
+        if ((UInt32.MaxValue < reading && reading <= Int64.MaxValue) || (Int64.MinValue <= reading && reading < Int32.MinValue)) {
+            length = (byte)sizeof(Int64);
+            prefix = (byte)(256 - length); // signed type
+        } else if ((Int32.MaxValue < reading && reading <= UInt32.MaxValue)) {
+            length = (byte)sizeof(UInt32);
             prefix = length;
-        } else if ((65_536 <= reading && reading <= 2_147_483_647) || (-2_147_483_648 <= reading && reading <= -32_769)) {
-            length = 4;
-            prefix = (byte)(256 - length);
-        } else if ((0 <= reading && reading <= 65_535)) {
-            length = 2;
+        } else if ((UInt16.MaxValue < reading && reading <= Int32.MaxValue) || (Int32.MinValue <= reading && reading < Int16.MinValue)) {
+            length = (byte)sizeof(Int32);
+            prefix = (byte)(256 - length); // signed type
+        } else if ((0 <= reading && reading <= UInt16.MaxValue)) {
+            length = (byte)sizeof(UInt16);
             prefix = length;
-        } else if ((-32_768 <= reading && reading <= -1)) {
-            length = 2;
-            prefix = (byte)(256 - length);
+        } else if ((Int16.MinValue <= reading && reading < 0)) {
+            length = (byte)sizeof(Int16);
+            prefix = (byte)(256 - length); // signed type
         } else {
             length = 0;
             prefix = 0;
         }
-        completeBuffer[0] = prefix;
-        payloadBytes = BitConverter.GetBytes(reading);
-        for (int i = 0; i < length; ++i) {
-            completeBuffer[i + 1] = payloadBytes[i];
-        }
-        return completeBuffer;
+        buffer[0] = prefix;
+        Buffer.BlockCopy(BitConverter.GetBytes(reading), 0, buffer, 1, length);
+        return buffer;
     }
 
     public static long FromBuffer(byte[] buffer) {
